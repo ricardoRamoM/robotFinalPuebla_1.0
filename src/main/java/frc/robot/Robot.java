@@ -471,16 +471,17 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
 
   }
 
-  PIDController pid = new PIDController(0.5, 0.0, 0.0);
+
+  //valor adecuado para P entre 0.5 y 0.8, mejor 0.8
+  PIDController pid = new PIDController(0.08, 0.03, 0.0);
   @Override
   public void testPeriodic() {
     /*pruebas pid */
 
     SmartDashboard.putNumber("encoder munecs", valorEncoderCajaAdel);
     
-    if(controlDriver.getRawButton(1)){
+    if(controlPlacer.getRawButton(1)){
       motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), -1));
-    
     }
 
 
