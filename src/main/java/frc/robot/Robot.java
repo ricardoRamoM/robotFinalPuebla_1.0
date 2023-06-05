@@ -12,6 +12,7 @@ import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.Solenoid;
@@ -31,25 +32,23 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  */
 public class Robot extends TimedRobot {
 
+  //Variables Generales
+  Timer tiempo = new Timer();
+  
+  Joystick controlDriver = new Joystick(0);
+  Joystick controlPlacer = new Joystick(1);
+
+  boolean tiempo_activo = true;
+  boolean movimiento1 = false;  
+
+
+  //Variables usadas para el Subsistema drivetrain (chasis)
   byte idMotorIzqAdel = 3;
   byte idMotorIzqAtras = 4;
 
   byte idMotorDerAdel = 1;
   byte idMotorDerAtras = 2;
-
-  byte idMotorInternoShooterIzq = 5;
-  byte idMotorShooterInternoDer = 6;
-
-  byte idCajaShooterAtras = 7;
-  byte idCajaShooterAdelante = 8;
   
-  byte idMotorExternoShooterDer = 9;
-  byte idMotorExternoShooterIzq = 10;
-
-  byte idMotorBrazo = 11;
-  byte idMotorMano = 12;
-
-
   CANSparkMax motorIzqAdelante = new CANSparkMax(idMotorIzqAdel, MotorType.kBrushless);
   CANSparkMax motorIzqAtras = new CANSparkMax(idMotorIzqAtras, MotorType.kBrushless);
   CANSparkMax motorDerAdelante = new CANSparkMax(idMotorDerAdel, MotorType.kBrushless);
@@ -72,14 +71,42 @@ public class Robot extends TimedRobot {
 
   double valorEncoderDerAdel;
   double valorEncoderIzqAdel;
+
+  Solenoid velocidades = new Solenoid(PneumaticsModuleType.REVPH, 1);  
+
+  double relacionBaja = 1.4; 
+  double relacionAlta = 0.9;
+  double relacionUsada =  relacionBaja;
+
+  double diametroLlanta = 0.1524; // Metros
+  double distanciaRecorrida;
+
+  AHRS NavX = new AHRS(Port.kMXP);
+  
+  boolean tank = true;
+  boolean velocidad;
+
+  //Variables usadas para el Subsistema del shooter
+
+  byte idMotorInternoShooterIzq = 5;
+  byte idMotorShooterInternoDer = 6;
+
+  byte idMotorExternoShooterDer = 9;
+  byte idMotorExternoShooterIzq = 10;
   
   CANSparkMax motorInternoShooterIzq = new CANSparkMax(idMotorInternoShooterIzq, MotorType.kBrushless);
   CANSparkMax motorInternoShooterDer = new CANSparkMax(idMotorShooterInternoDer, MotorType.kBrushless);
   WPI_TalonSRX motorExternoShooterDer = new WPI_TalonSRX(idMotorExternoShooterDer);
   WPI_TalonSRX motorExternoShooterIzq = new WPI_TalonSRX(idMotorExternoShooterIzq);
   MotorControllerGroup motoresExternosShooter = new MotorControllerGroup(motorExternoShooterDer, motorExternoShooterIzq);
-  
-  
+    
+  double velocidadShooter = 0;
+
+  //Variables usadas para el Subsistema de la muneca del shooter
+
+  byte idCajaShooterAtras = 7;
+  byte idCajaShooterAdelante = 8;
+
   CANSparkMax motorCajaShooterAdelante = new CANSparkMax(idCajaShooterAdelante, MotorType.kBrushless);
   CANSparkMax motorCajaShooterAtras = new CANSparkMax(idCajaShooterAtras, MotorType.kBrushless);
   MotorControllerGroup motoresCajaShooter = new MotorControllerGroup(motorCajaShooterAdelante, motorCajaShooterAtras);
@@ -90,45 +117,6 @@ public class Robot extends TimedRobot {
   double valorEncoderCajaAdel;
   double valorEncoderCajaAtras;
 
-  
-  WPI_VictorSPX motorBrazo = new WPI_VictorSPX(idMotorBrazo);
-  WPI_VictorSPX motorMano = new WPI_VictorSPX(idMotorMano);
-
-  Solenoid velocidades = new Solenoid(PneumaticsModuleType.REVPH, 1);
-    
-
-
-  double relacionBaja = 1.4; 
-  double relacionAlta = 0.9;
-  double relacionUsada =  relacionBaja;
-
-  double diametroLlanta = 0.1524; // Metros
-  double distanciaRecorrida;  
-
-  double velocidadShooter = 0;
-
-  
-  AHRS NavX = new AHRS(Port.kMXP);
-  
-  //
-  double velocidadPositivaBaja = 0.25D;
-  double velocidadNegativaBaja = -0.25D;
-  double velocidadPositivaMedia = 0.5D;
-  double velocidadNegativaMedia = -0.5D;
-  
-  boolean tank = true;
-  boolean tiempo_activo = true;
-  boolean velocidad;
-  boolean movimiento1 = false;  
-  boolean movimiento2 = false;  
-  boolean movimiento3 = false;  
-
-
-  Timer tiempo = new Timer();
-
-  
-  Joystick controlDriver = new Joystick(0);
-  Joystick controlPlacer = new Joystick(1);
 
   /*----###################################################################################################3-- */
   @Override
@@ -154,6 +142,8 @@ public class Robot extends TimedRobot {
     motorIzqAtras.follow(motorIzqAdelante);
     //Sensor Reset 
     resetEncodersChasis();
+    
+
     
     //
     encoderCajaShootAdel = motorCajaShooterAdelante.getEncoder();
@@ -219,6 +209,9 @@ public class Robot extends TimedRobot {
     //false en alta
     //true en baja
 
+    
+    
+
     SmartDashboard.putBoolean("Baja", velocidad);
     SmartDashboard.putBoolean("Alta", !velocidad);
     valorEncoderIzqAdel = encoderIzqAdel.getPosition();
@@ -236,7 +229,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("angulo ", NavX.getRawGyroY());
    //---------------
    //Auto PARA ADOCKED
-   /*double velAutonomo = 0.35;
+   double velAutonomo = 0.35;
    if( tiempo.get() <= 2 ){
        //se tira el cubo a 3
    if(valorEncoderCajaAdel <= 0.25){
@@ -284,7 +277,7 @@ public class Robot extends TimedRobot {
      }
      else{
        chasis.tankDrive(0.0, 0);
-       movimiento2 = true;
+      // movimiento2 = true;
      }
 
    }  else {
@@ -292,7 +285,7 @@ public class Robot extends TimedRobot {
        motorInternoShooterDer.set(0);
        motoresExternosShooter.set(0);
 
-     }*/
+     }
 
 
    //-------------------
@@ -470,14 +463,27 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
 
   @Override
   public void testInit() {
-    resetEncodersChasis();
+    /*resetEncodersChasis();
     relacionUsada = relacionBaja;
     resetGyro();
-    velocidades.set(true);
+    velocidades.set(true);*/
+
+
   }
 
+  PIDController pid = new PIDController(0.05, 0.0, 0.0);
   @Override
   public void testPeriodic() {
+    /*pruebas pid */
+
+    SmartDashboard.putNumber("encoder munecs", valorEncoderCajaAdel);
+    
+    if(controlDriver.getRawButton(1)){
+      motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), -1));
+    }
+
+
+    /*
     valorEncoderIzqAdel = encoderIzqAdel.getPosition();
     valorEncoderDerAdel = -encoderDerAdel.getPosition();
     SmartDashboard.putNumber("encoderIzqAdel ", valorEncoderIzqAdel);
@@ -504,7 +510,8 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
       //meter
       motorInternoShooterDer.set(0.2);
       motoresExternosShooter.set(0.3);
-    }
+
+    }*/
 
     //--------------------------
 //GIRO izquierda A 180 5 SEGUNDOs
@@ -565,7 +572,7 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
     encoderCajaShootAtras.setPosition(0);
   }
 
-  @Override
+  @Override 
   public void teleopPeriodic() {
 
     /*SmartDashboard.putNumber("getGyro", getGyro());
