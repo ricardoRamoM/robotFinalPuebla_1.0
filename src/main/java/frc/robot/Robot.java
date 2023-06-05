@@ -471,7 +471,7 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
 
   }
 
-  PIDController pid = new PIDController(0.05, 0.0, 0.0);
+  PIDController pid = new PIDController(0.5, 0.0, 0.0);
   @Override
   public void testPeriodic() {
     /*pruebas pid */
@@ -480,6 +480,7 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
     
     if(controlDriver.getRawButton(1)){
       motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), -1));
+    
     }
 
 
