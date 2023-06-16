@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Talon;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
@@ -57,8 +58,6 @@ public class Robot extends TimedRobot {
   SparkMaxPIDController pidDer = motorDerAdelante.getPIDController();
   SparkMaxPIDController pidIzq = motorIzqAdelante.getPIDController();
 
-  MotorControllerGroup Izq = new MotorControllerGroup(motorIzqAdelante, motorIzqAtras);
-
   RelativeEncoder encoderIzqAdel;
   RelativeEncoder encoderIzqAtras;
   RelativeEncoder encoderDerAdel;
@@ -68,7 +67,7 @@ public class Robot extends TimedRobot {
   MotorControllerGroup motoresDer = new MotorControllerGroup(motorDerAdelante, motorDerAtras);
 
   DifferentialDrive chasis = new DifferentialDrive(motoresIzq, motoresDer);
-
+  
   double valorEncoderDerAdel;
   double valorEncoderIzqAdel;
 
@@ -86,20 +85,23 @@ public class Robot extends TimedRobot {
   boolean tank = true;
   boolean velocidad;
 
-  //Variables usadas para el Subsistema del shooter
+  //Variables usadas para el Subsistema del shooter interior
 
   byte idMotorInternoShooterIzq = 5;
-  byte idMotorShooterInternoDer = 6;
+  byte idMotorInternoShooterDer = 6;
 
+  CANSparkMax motorInternoShooterIzq = new CANSparkMax(idMotorInternoShooterIzq, MotorType.kBrushless);
+  CANSparkMax motorInternoShooterDer = new CANSparkMax(idMotorInternoShooterDer, MotorType.kBrushless);
+  
+  //Variables usadas para el Subsistema del shooter exterior
   byte idMotorExternoShooterDer = 9;
   byte idMotorExternoShooterIzq = 10;
   
-  CANSparkMax motorInternoShooterIzq = new CANSparkMax(idMotorInternoShooterIzq, MotorType.kBrushless);
-  CANSparkMax motorInternoShooterDer = new CANSparkMax(idMotorShooterInternoDer, MotorType.kBrushless);
   WPI_TalonSRX motorExternoShooterDer = new WPI_TalonSRX(idMotorExternoShooterDer);
   WPI_TalonSRX motorExternoShooterIzq = new WPI_TalonSRX(idMotorExternoShooterIzq);
   MotorControllerGroup motoresExternosShooter = new MotorControllerGroup(motorExternoShooterDer, motorExternoShooterIzq);
     
+
   double velocidadShooter = 0;
 
   //Variables usadas para el Subsistema de la muneca del shooter
@@ -116,11 +118,18 @@ public class Robot extends TimedRobot {
   
   double valorEncoderCajaAdel;
   double valorEncoderCajaAtras;
+  
 
 
   /*----###################################################################################################3-- */
   @Override
   public void robotInit() {
+    motorDerAdelante.restoreFactoryDefaults();
+    motorDerAtras.restoreFactoryDefaults();
+    motorIzqAdelante.restoreFactoryDefaults();
+    motorIzqAtras.restoreFactoryDefaults();
+
+
     //SetUp Encoders
     encoderIzqAdel = motorIzqAdelante.getEncoder();
     encoderIzqAtras = motorIzqAtras.getEncoder();
@@ -128,34 +137,50 @@ public class Robot extends TimedRobot {
     encoderDerAtras = motorDerAtras.getEncoder();
 
     //SetUp spark Max Chasis
-    //roult tiene chasis en coast
     motorDerAdelante.setIdleMode(IdleMode.kCoast);
-    motorDerAdelante.setIdleMode(IdleMode.kCoast);
-    motorDerAdelante.setIdleMode(IdleMode.kCoast);
-    motorDerAdelante.setIdleMode(IdleMode.kCoast);
+    motorDerAtras.setIdleMode(IdleMode.kCoast);
+    motorIzqAdelante.setIdleMode(IdleMode.kCoast);
+    motorIzqAtras.setIdleMode(IdleMode.kCoast);
+
+    
 
     //SetUp inverted Motors
+
+    /* 
+     * Si se invierte de esta manera, van a cambiar dentro del propio spark max
+     * y cualquiera que lo use verá ese cambio y aparecerá dentro de la app de REV
+    motorDerAdelante.setInverted(false);
+    motorDerAtras.setInverted(false);
+    motorIzqAdelante.setInverted(true);
+    motorIzqAtras.setInverted(true);*/
+    
+    /*
+     * Si se invierte de esta manera, no cambia la configuracion de los spark max,
+     * simplemente dentro del codigo se invierte, pero no se verá alterada la configuracion
+     * del spark en la aplicacion de rev
+     */
     motoresDer.setInverted(false);
     motoresIzq.setInverted(!motoresDer.getInverted());
 
-    motorDerAtras.follow(motorDerAdelante);
-    motorIzqAtras.follow(motorIzqAdelante);
+    //No es necesario en este caso usar el follow porque ya se agruparon los motores
+    //motorDerAtras.follow(motorDerAdelante);
+    //motorIzqAtras.follow(motorIzqAdelante);
+
     //Sensor Reset 
     resetEncodersChasis();
-    
-
-    
-    //
+        
+    //Muneca Setup
     encoderCajaShootAdel = motorCajaShooterAdelante.getEncoder();
     encoderCajaShootAtras = motorCajaShooterAtras.getEncoder();
 
     motorCajaShooterAdelante.setIdleMode(IdleMode.kBrake);
     motorCajaShooterAdelante.setIdleMode(IdleMode.kBrake);
 
+    //
     motorInternoShooterDer.setIdleMode(IdleMode.kBrake);
     motorInternoShooterIzq.setIdleMode(IdleMode.kBrake);
 
-
+    //
     motorExternoShooterIzq.setInverted(false);
     motorExternoShooterDer.setInverted(!motorExternoShooterIzq.getInverted());
 
@@ -229,7 +254,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("angulo ", NavX.getRawGyroY());
    //---------------
    //Auto PARA ADOCKED
-   double velAutonomo = 0.35;
+   /*double velAutonomo = 0.35;
    if( tiempo.get() <= 2 ){
        //se tira el cubo a 3
    if(valorEncoderCajaAdel <= 0.25){
@@ -467,23 +492,34 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
     relacionUsada = relacionBaja;
     resetGyro();
     velocidades.set(true);*/
-
+    //Shuffleboard.startRecording();
 
   }
 
 
   //valor adecuado para P entre 0.5 y 0.8, mejor 0.8
-  PIDController pid = new PIDController(0.08, 0.03, 0.0);
+  //valor para la I entre 0.4 y 0.5, mejor 0.4
+  //valor para la D 
+  PIDController pid = new PIDController(0.08, 0.03, 0.001);
+  double setPosition = -1;
+
   @Override
   public void testPeriodic() {
-    /*pruebas pid */
+    /*pruebas pid muneca
+     * El set position tiene que ir negativo
+     * 
+    */
 
     SmartDashboard.putNumber("encoder munecs", valorEncoderCajaAdel);
-    
-    if(controlPlacer.getRawButton(1)){
-      motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), -1));
-    }
+    SmartDashboard.putNumber("Velocidad Motores", motoresCajaShooter.get());
 
+    if(controlPlacer.getRawButton(1)){
+      motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), setPosition));
+      
+    }
+    
+    
+ 
 
     /*
     valorEncoderIzqAdel = encoderIzqAdel.getPosition();
@@ -599,6 +635,7 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
     }
     else if(tank == false)
     {
+  
       chasis.arcadeDrive(0.75*controlDriver.getRawAxis(1), 0.75*controlDriver.getRawAxis(4));
       SmartDashboard.putNumber("enfrente/atras", 0.75*controlDriver.getRawAxis(1));
       SmartDashboard.putNumber("giro joystick", 0.75*controlDriver.getRawAxis(4));
@@ -729,10 +766,14 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
   }
 /*----###################################################################################################3-- */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    Shuffleboard.stopRecording();
+  }
 
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+
+  }
 
 /********************* */
 
