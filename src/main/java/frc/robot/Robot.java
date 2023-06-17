@@ -497,11 +497,21 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
   }
 
 
-  //valor adecuado para P entre 0.5 y 0.8, mejor 0.8
-  //valor para la I entre 0.4 y 0.5, mejor 0.4
+  //valor adecuado para P, entre 0.7 y 1 , 0.09 o 0.1 
+  //  P con 0.09, con SP -0.5, llega a 0.45
+  //  P con 0.1, con SP -0.5, llega a 0.65 el peso le gana y baja a 0.7
+  //valor para la I entre 0.4 y 0.5, mejor 0.3
   //valor para la D 
-  PIDController pid = new PIDController(0.08, 0.03, 0.001);
-  double setPosition = -1;
+
+
+  //Prueba funcional 1 - P 0.8  I 0.3
+  //Prueba funcional 2 - P 0.7  I 0.4
+  
+  double kp = 0.07;
+  double ki = 0.04;
+  double kd = 0.0;
+  PIDController PID_Muneca = new PIDController(kp, ki, kd);
+  double setPosition = -0.5;
 
   @Override
   public void testPeriodic() {
@@ -509,12 +519,16 @@ else if( tiempo.get() > 9  && tiempo.get() <= 9.8 ){
      * El set position tiene que ir negativo
      * 
     */
+    
+    PID_Muneca.setP(kp);
+    PID_Muneca.setI(ki);
+    PID_Muneca.setD(kd);
 
     SmartDashboard.putNumber("encoder munecs", valorEncoderCajaAdel);
     SmartDashboard.putNumber("Velocidad Motores", motoresCajaShooter.get());
 
     if(controlPlacer.getRawButton(1)){
-      motoresCajaShooter.set(pid.calculate(encoderCajaShootAdel.getPosition(), setPosition));
+      motoresCajaShooter.set(PID_Muneca.calculate(encoderCajaShootAdel.getPosition(), setPosition));
       
     }
     
